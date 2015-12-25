@@ -5,18 +5,71 @@ date: "December 24, 2015"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Loading required packages
 
 ```{r}
-summary(cars)
+library(caret)
+library(AppliedPredictiveModeling)
 ```
 
-You can also embed plots, for example:
+Loading traning and testing dataset
+  * na.string imputed for values "NA",  "#DIV/0!" or  ""
+
 
 ```{r, echo=FALSE}
-plot(cars)
+# data cleaning -- replace na.stings for data with "NA", "DIV/0!", "" to load csv file into data object
+pml_training_data <- read.csv("pml-training.csv",header=TRUE, sep=",", na.strings = c("NA", "#DIV/0!", ""))
+pml_testing_data <- read.csv("pml-testing.csv", header=TRUE, sep=",", na.strings = c("NA", "#DIV/0!", ""))
+```
+#verify the data dimentions
+dim(pml_training_data)
+#head(pml_training_data)
+
+# remove columns such as id, name, time
+```{r}
+pml_training_data <- pml_training_data[,7:160]
+pml_testing_data <-pml_testing_data[,7:160]
+inTrain = createDataPartition(pml_training_data$classe, p = 3/4)[[1]]
+training = pml_training_data[ inTrain,]
+validation = pml_training_data[-inTrain,]
+```
+#remove These variables have zero variances:
+# create preprocess object
+
+```{r}
+nzv <- nearZeroVar(training)
+nzv[nzv$nzv,][1:10,]
+filtereddata <- training[, -nzv]
+dim(filtereddata)
+```
+# removed columns that are more than half rows were NA
+
+```{r}
+filtereddata <- filtereddata[ , -which( colSums(is.na(filtereddata)) > nrow(filtereddata)/2 ) ]
+dim(filtereddata)
+names(filtereddata)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+creating feature plots to validate the variance 
+``` {r}
+featurePlot(x=filtereddata[,c("classe","roll_belt","pitch_belt","yaw_belt","total_accel_belt" )],y = filtereddata$classe,plot="pairs")
+featurePlot(x=filtereddata[,c("classe","roll_arm","pitch_arm","yaw_arm","total_accel_arm" )],y = filtereddata$classe,plot="pairs")
+
+filtereddata$classe <- factor(filtereddata$classe)
+preProcValues <- preProcess(filtereddata, method = c("center", "scale"))
+filtereddata1<-predict(preProcValues,filtereddata)
+Train_sample<-createDataPartition(y=filtereddata$classe,p=0.1,list=FALSE)
+SampleTrain<-filtereddata[Train_sample,]
+names(SampleTrain)
+```
+Train random forest 
+
+```{r chunkName, cache=TRUE}
+# apply random forest
+modFit <- train(classe~ .,data=SampleTrain,method="rf",trControl=trainControl(method="cv",number=5), prox=TRUE,allowParallel=TRUE)
+
+         
+print(modFit)
+test <- predict(modFit,validation)
+table(test, validation$classe)
+```
