@@ -78,8 +78,6 @@ Train model with random forest , used cross-validation and set allowParallel to 
 ```{r TrainRF, cache=TRUE}
 # apply random forest
 modFit <- train(classe~ .,data=SampleTrain,method="rf",trControl=trainControl(method="cv",number=5), prox=TRUE,allowParallel=TRUE)
-train_result <- predict(modFit,Train_sample)
-table(train_result, Train_sample$classe)
 print(modFit)
 ```
 #Model validation and accuracy
