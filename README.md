@@ -1,2 +1,2 @@
 # practicalmachinelearning-
-Practical Machine Learning 
+Repository for Practical Machine Learning course 
